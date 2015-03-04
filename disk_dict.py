@@ -33,6 +33,8 @@ class DiskDict(object):
 		>> dd['hello']
 		0
 		>> dd['hello'] += 7
+		>> dd['hello']
+		7
 		"""
 		self.max_filename_len = max_filename_len
 		self.location = location.rstrip('/') + '/'
