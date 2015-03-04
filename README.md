@@ -9,4 +9,7 @@ A disk-based key/value store in Python with no dependencies. All operations are 
 >> dd['hello'] += 7
 >> dd['hello']
 7
+>> del dd['hello']
+>> dd['hello']
+0
 ```
