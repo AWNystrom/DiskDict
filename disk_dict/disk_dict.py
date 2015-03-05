@@ -58,7 +58,9 @@ class DiskDict(object):
 			path.append(key[i:i+self.max_filename_len])
 		return self.location + '/'.join(path)
 		
-	def get(self, key):
+	def get(self, key, default=None):
+		if default is None:
+			default = self.default
 		filename = self._get_path(key)
 		if exists(filename):
 			fd = open(filename)
@@ -66,7 +68,7 @@ class DiskDict(object):
 			val = eval(data)
 			return val
 		else:
-			return self.default() if hasattr(self.default, '__call__') else self.default
+			return default() if hasattr(default, '__call__') else default
 			
 	def put(self, key, val):
 		path = self._get_path(key)
