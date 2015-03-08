@@ -13,3 +13,6 @@ A disk-based key/value store in Python with no dependencies. All operations are 
 >>> dd['hello']
 0
 ```
+
+PyPI: https://pypi.python.org/pypi?name=disk_dict&version=1.0.0&:action=display
+Github: https://github.com/AWNystrom/DiskDict/
