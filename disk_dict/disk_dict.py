@@ -1,9 +1,10 @@
 from os.path import exists
-from os import mkdir, remove, makedirs
-from base64 import b32encode
+from os import mkdir, remove, rename
+from xxhash import xxh64
+from base64 import b64encode, b64decode
 
 class DiskDict(object):
-	def __init__(self, location, max_filename_len=255, default=None):
+	def __init__(self, location, serializer=repr, deserializer=eval, default=None):
 		"""
 		Store key value pairs on disk. All operations are as fast as the host operating 
 		system's file access complexities.
@@ -13,8 +14,14 @@ class DiskDict(object):
 				   shouldn't plan on using this directory for anything else as it will 
 				   fill up with files - one for each key that's stored.
 		
-		max_filename_len : The maximum number of characters the host operating system
-						   allows in the name of a file.
+		serializer : A value associated with a key is serialized so that it can be written
+					 to disk. This callable determines how the value is serialized. Good
+					 options could be repr, cPickle.dumps, or ujson.dumps, depending on
+					 your task.
+		
+		deserializer : This is the inverse of serializer. E.g. if serializer is repr, this
+					   should be eval. If serializer was cPickle.dumps, this should be
+					   cPickle.loads, etc.
 						   
 		default : The value returned when a key is not present. Think default as in 
 				  collections.defaultdict. If default is a callable, its __call__ method
@@ -39,51 +46,62 @@ class DiskDict(object):
 		>> dd['hello']
 		0
 		"""
-		self.max_filename_len = max_filename_len
+		self.serializer = serializer
+		self.deserializer = deserializer
 		self.location = location.rstrip('/') + '/'
 		self.default = default
-		self.make()
-		
-	def make(self):
 		if not exists(self.location):
 			mkdir(self.location)
-	
-	def _get_path(self, key_):
-		"""
-		Returns the internal path for a key.
-		"""
-		key = '_' + b32encode(repr(key_)) #Prefix with _ in case empty
-		path = []
-		for i in xrange(0, len(key), self.max_filename_len):
-			path.append(key[i:i+self.max_filename_len])
-		return self.location + '/'.join(path)
 		
 	def get(self, key, default=None):
 		if default is None:
 			default = self.default
-		filename = self._get_path(key)
-		if exists(filename):
-			fd = open(filename)
-			data = fd.read()
-			val = eval(data)
-			return val
-		else:
+		
+		serialized_key = self.serializer(key)
+		b64_serialized_key = b64encode(serialized_key)
+		key_hash = xxh64(serialized_key).hexdigest()
+		hash_file = self.location + key_hash
+		
+		if not exists(hash_file):
 			return default() if hasattr(default, '__call__') else default
 			
+		for line in open(hash_file):
+			b64_key, b64_val = line.split('\t')
+			if b64_key == b64_serialized_key:
+				return self.deserializer(b64decode(b64_val))
+		return default() if hasattr(default, '__call__') else default
+			
 	def put(self, key, val):
-		path = self._get_path(key)
-		if '/' in path:
-			dirs, filename = path.rsplit('/', 1)
-			if not exists(dirs):
-				makedirs(dirs)
-			filename = dirs + '/' + filename
-		else:
-			filename = path
+		serialized_key = self.serializer(key)
+		b64_serialized_key = b64encode(serialized_key)
+		key_hash = xxh64(serialized_key).hexdigest()
+		hash_file = self.location + key_hash
+		remove_key = False
 		
-		fd = open(filename, 'w')
-		fd.write(repr(val))
+		if exists(hash_file):
+			for line in open(hash_file):
+				b64_key, b64_val = line.split('\t')
+				if b64_key == b64_serialized_key:
+					deserialized_val = self.deserializer(b64decode(b64_val))
+					if val == deserialized_val:
+						#The key is already points to the proper value.
+						return
+					remove_key = True
+					#The key is in the dict, but points to an old value. Make a copy of the
+					#file but without the line for this key, then replace the old hash file
+					#with it.
+				
+			if remove_key:
+				self.__delitem__(key)
+		
+		#Now just append the key,val pair to the hash file
+		fd = open(hash_file, 'a')
+		fd.write(b64_serialized_key)
+		fd.write('\t')
+		fd.write(b64encode(self.serializer(val)))
+		fd.write('\n')
 		fd.close()
-	
+				
 	def __getitem__(self, key):
 		return self.get(key)
 	
@@ -91,11 +109,46 @@ class DiskDict(object):
 		self.put(key, val)
 	
 	def __contains__(self, key):
-		return self.get(key) is not None
+		serialized_key = self.serializer(key)
+		b64_serialized_key = b64encode(serialized_key)
+		key_hash = xxh64(serialized_key).hexdigest()
+		hash_file = self.location + key_hash
+		
+		if not exists(hash_file):
+			return False
+			
+		for line in open(hash_file):
+			b64_key, b64_val = line.split('\t')
+			if b64_key == b64_serialized_key:
+				return True
+				
+		return False
 	
 	def __delitem__(self, key):
-		if key == '':
+		serialized_key = self.serializer(key)
+		b64_serialized_key = b64encode(serialized_key)
+		key_hash = xxh64(serialized_key).hexdigest()
+		hash_file = self.location + key_hash
+		if not exists(hash_file):
+			#Our work here is done.
 			return
-		filename = self._get_path(key)
-		if exists(filename):
-			remove(filename)
+		copied_filename = hash_file + '~'
+		copied_file = open(copied_filename, 'w')
+		found = False
+		
+		for line_count, line in enumerate(open(hash_file)):
+			b64_key, b64_val = line.split('\t')
+			if b64_key == b64_serialized_key:
+				found = True
+				continue
+			copied_file.write(line)
+		copied_file.close()
+		rename(copied_filename, hash_file)
+		
+		if line_count == 0 and found:
+			#If we removed the last element, remove the hash file.
+			remove(hash_file)
+					
+	def clean(self):
+		pass
+		#For each hash file, see which data files in that hash file exist. Only keep those that do.
