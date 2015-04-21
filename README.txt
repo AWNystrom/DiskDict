@@ -1,4 +1,4 @@
-A disk-based key/value store in Python with no dependencies. All operations are as fast as the host operating system's file access complexities. Methods have been overloaded for pretty syntax.
+A disk-based key/value store in Python. All operations are as fast as the host operating system's file access complexities. Methods have been overloaded for pretty syntax.
 
 >>> dd = DiskDict('my_disk_dict', default=0)
 >>> dd['hello']
