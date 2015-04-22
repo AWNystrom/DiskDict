@@ -1,0 +1,4 @@
+2.1.0
+Key equivalence chaking was done to keys in their base64 encoded serialized forms. This could produce undesired results. The bullet has been bitten and we are now deserializing keys when checking for equivalency.
+
+Starting keeping a changelog.
