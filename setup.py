@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name = "disk_dict",
     packages = find_packages(),
-    version = "2.0.1",
+    version = "2.0.2",
     description = "A disk-based key/value store in Python.",
     author = "Andrew Nystrom",
     author_email = "AWNystrom@gmail.com",
