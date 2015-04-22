@@ -1,4 +1,4 @@
-from os.path import exists
+from os.path import exists, expanduser, realpath
 from os import mkdir, remove, rename
 from xxhash import xxh64
 from base64 import b64encode, b64decode
@@ -52,7 +52,7 @@ class DiskDict(object):
                """
         self.serializer = serializer
         self.deserializer = deserializer
-        self.location = location.rstrip('/') + '/'
+        self.location = realpath(expanduser(location.rstrip('/'))) + '/'
         self.default = default
         if not exists(self.location):
             mkdir(self.location)
@@ -62,7 +62,6 @@ class DiskDict(object):
             default = self.default
 
         serialized_key = self.serializer(key)
-        b64_serialized_key = b64encode(serialized_key)
         key_hash = xxh64(serialized_key).hexdigest()
         hash_file = self.location + key_hash
 
@@ -71,13 +70,13 @@ class DiskDict(object):
 
         for line in open(hash_file):
             b64_key, b64_val = line.split('\t')
-            if b64_key == b64_serialized_key:
+            key_from_line = self.deserializer(b64decode(b64_key))
+            if key == key_from_line:
                 return self.deserializer(b64decode(b64_val))
         return default() if hasattr(default, '__call__') else default
 
     def put(self, key, val):
         serialized_key = self.serializer(key)
-        b64_serialized_key = b64encode(serialized_key)
         key_hash = xxh64(serialized_key).hexdigest()
         hash_file = self.location + key_hash
         remove_key = False
@@ -85,7 +84,8 @@ class DiskDict(object):
         if exists(hash_file):
             for line in open(hash_file):
                 b64_key, b64_val = line.split('\t')
-                if b64_key == b64_serialized_key:
+                key_from_line = self.deserializer(b64decode(b64_key))
+                if key == key_from_line:
                     deserialized_val = self.deserializer(b64decode(b64_val))
                     if val == deserialized_val:
                         #The key is already points to the proper value.
@@ -100,7 +100,7 @@ class DiskDict(object):
 
         #Now just append the key,val pair to the hash file
         fd = open(hash_file, 'a')
-        fd.write(b64_serialized_key)
+        fd.write(b64encode(self.serializer(key)))
         fd.write('\t')
         fd.write(b64encode(self.serializer(val)))
         fd.write('\n')
@@ -114,7 +114,6 @@ class DiskDict(object):
 
     def __contains__(self, key):
         serialized_key = self.serializer(key)
-        b64_serialized_key = b64encode(serialized_key)
         key_hash = xxh64(serialized_key).hexdigest()
         hash_file = self.location + key_hash
 
@@ -123,14 +122,14 @@ class DiskDict(object):
 
         for line in open(hash_file):
             b64_key, b64_val = line.split('\t')
-            if b64_key == b64_serialized_key:
+            key_from_line = self.deserializer(b64decode(b64_key))
+            if key == key_from_line:
                 return True
 
         return False
 
     def __delitem__(self, key):
         serialized_key = self.serializer(key)
-        b64_serialized_key = b64encode(serialized_key)
         key_hash = xxh64(serialized_key).hexdigest()
         hash_file = self.location + key_hash
         if not exists(hash_file):
@@ -142,7 +141,8 @@ class DiskDict(object):
 
         for line_count, line in enumerate(open(hash_file)):
             b64_key, b64_val = line.split('\t')
-            if b64_key == b64_serialized_key:
+            key_from_line = self.deserializer(b64decode(b64_key))
+            if not found and key == key_from_line:
                 found = True
                 continue
             copied_file.write(line)
