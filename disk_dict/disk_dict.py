@@ -152,7 +152,3 @@ class DiskDict(object):
         if line_count == 0 and found:
             #If we removed the last element, remove the hash file.
             remove(hash_file)
-
-    def clean(self):
-        pass
-        #For each hash file, see which data files in that hash file exist. Only keep those that do.
