@@ -21,6 +21,6 @@ DiskDict works the same way a separate chaining hashtable does, only it's on dis
 ##Installation
 pip install disk_dict
 
-##Links
+###Links
 PyPI: https://pypi.python.org/pypi?name=disk_dict&:action=display
 Github: https://github.com/AWNystrom/DiskDict/
