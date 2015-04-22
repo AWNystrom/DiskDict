@@ -15,6 +15,12 @@ DiskDict is a hashtable on your hard drive. It allows you to store KAZILLIONS (!
 >>>
 ```
 
+##How does it work?
+DiskDict works the same way a separate chaining hashtable does, only it's on disk. In this case, a bucket is a file and key/value pairs are stored in the file the key gets hashed to.
+
+##Installation
+pip install disk_dict
+
 PyPI: https://pypi.python.org/pypi?name=disk_dict&:action=display
 
 Github: https://github.com/AWNystrom/DiskDict/
