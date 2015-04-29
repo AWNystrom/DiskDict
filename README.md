@@ -15,6 +15,8 @@ DiskDict is a hashtable and the bins are files. This means that the total number
 |NTFS       |2^32-1                                |
 |FAT32      |65,535                                |
 
+So use either ext4 or NTFS :)
+
 ##Example Usage
 ```python
 >>> from disk_dict import DiskDict
