@@ -8,9 +8,13 @@ DiskDict works the same way a separate chaining hashtable does, only it's on dis
 DiskDict is a hashtable and the bins are files. This means that the total number of pairs you can store depends on the filesystem you're using.
 
 ext4: 2^32-1
+
 ext3: min(volumeSize / 2^13, numberOfBlocks)
+
 ext2: 10^18 (performane issues past 10,000)
+
 NTFS: 2^32-1
+
 FAT32: 65,535
 
 Note that this is assuming there will be no collisions in the 64-bit hash space DiskDict uses. If there are collisions, more pairs can be stored.
