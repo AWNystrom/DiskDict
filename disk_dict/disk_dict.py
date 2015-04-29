@@ -1,5 +1,5 @@
 from os.path import exists, expanduser, realpath
-from os import mkdir, remove, rename
+from os import mkdir, remove, rename, walk
 from xxhash import xxh64
 from base64 import b64encode, b64decode
 
@@ -146,9 +146,47 @@ class DiskDict(object):
                 found = True
                 continue
             copied_file.write(line)
+            
         copied_file.close()
         rename(copied_filename, hash_file)
 
         if line_count == 0 and found:
             #If we removed the last element, remove the hash file.
             remove(hash_file)
+            
+        if not found:
+            raise KeyError
+    
+    def iterkeys(self):
+        deserializer = self.deserializer
+        for root, dirs, files in walk(self.location):
+            for hash_filename in files:
+                for line in open(root + hash_filename):
+	                b64_key, _ = line.split('\t')
+	                yield deserializer(b64decode(b64_key))
+	
+    def iteritems(self):
+        deserializer = self.deserializer
+        for root, dirs, files in walk(self.location):
+            for hash_filename in files:
+                for line in open(root + hash_filename):
+                    b64_key, b64_val = line.split('\t')
+                    yield (deserializer(b64decode(b64_key)), 
+                           deserializer(b64decode(b64_val)))
+	                       
+    def itervalues(self):
+        deserializer = self.deserializer
+        for root, dirs, files in walk(self.location):
+            for hash_filename in files:
+                for line in open(root + hash_filename):
+                    _, b64_val = line.split('\t')
+                    yield deserializer(b64decode(b64_val))
+    
+    def keys(self):
+        return [k for k in self.iterkeys()]
+    
+    def values(self):
+        return [v for v in self.itervalues()]
+    
+    def items(self):
+        return [p for p in self.iteritems()]
